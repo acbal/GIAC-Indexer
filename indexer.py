@@ -58,7 +58,11 @@ def option_handler(user_input, index_tsv):
     elif user_input == "duplicates":
         find_duplicates(index_tsv)
     elif user_input == "output":
-        output_index(index_tsv)
+        input2 = input("Use Colours to separate books? *Y*es to confirm ").lower()
+        if input2 == "yes" or input2 == "y":
+            output_index(index_tsv, print_colours=True)
+        else:
+            output_index(index_tsv)
 
 def show_index(index_tsv):
     """ Displays the index as is """
@@ -163,9 +167,16 @@ def escape_ang_brackets(entry):
     entry['Keyword'] = entry['Keyword'].replace('>', '&gt;')
     entry['Comment'] = entry['Comment'].replace('<', '&lt;')
     entry['Comment'] = entry['Comment'].replace('>', '&gt;')
-        
 
-def output_index(index_tsv):
+def pick_colour(location):
+    """ Returns the proper colour code depending on which book the location references """
+
+    # Assume location in the form n.nnn
+    book = location.split('.')[0]
+
+    return f" colour{book}"
+
+def output_index(index_tsv, print_colours=False):
     """ Outputs the index in HTML format """
 
     # Prep the file first
@@ -201,19 +212,24 @@ def output_index(index_tsv):
                     }
                     div.row > div {
                       display: inline-block;  
-                      margin: 0.1cm;
                       overflow-x: auto;
                       padding: 0;
+                      vertical-align: middle;
                     }
                     div.row {
                       display: block;
                     }
+                    h1 {
+                        page-break-before: always;
+                        margin-left: 10em;
+                    }
                     .thead {
                         text-align: center;
                         font-weight: bold;
-                    }
+                        }
                     .keyword {
                         width: 30%;
+                        margin-left: 0.1cm;
                     }
                     .location {
                         width: 10%;
@@ -221,9 +237,9 @@ def output_index(index_tsv):
                     }
                     .comment {
                         width:50%;
+                        margin-left: 0.5cm;
                     }
                 }
-
                 
                 section.table > div:nth-of-type(odd) {
                     background: #e0e0e0;
@@ -235,14 +251,14 @@ def output_index(index_tsv):
                 }
                 .table {
                     display: table;
-                    border-spacing: 2px;
+                    border-spacing: 1px;
                 }
                 .row {
                     display: table-row;
                 }
                 .row > div {
                     display: table-cell;
-                    padding: 2px;
+                    padding: 4px; 
                 }
                 .thead {
                     text-align: center;
@@ -251,6 +267,26 @@ def output_index(index_tsv):
                 .location {
                     text-align: center;
                 }
+
+                .colour1 {
+                background: #b7e1cd;
+                }
+                .colour2 {
+                background: #e1c8b7;
+                }
+                .colour3 {
+                background: #b7c5e1;
+                }
+                .colour4 {
+
+                }
+                .colour5 {
+
+                }
+                .colour6 {
+
+                }
+                
 
                 </style>
                 </head>
@@ -273,8 +309,14 @@ def output_index(index_tsv):
             if entry['Keyword'][0].upper() != current_char:
                 current_char = entry['Keyword'][0].upper()
                 index_html += f"<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
-        
-        index_html += f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
+                
+        # Print Color based on book number
+        if print_colours:
+            colour = pick_colour(entry['Location'])
+        else:
+            colour = ''
+            
+        index_html += f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
 
     # Finalise the html page and write it
     index_html += "</section></body></html>"
