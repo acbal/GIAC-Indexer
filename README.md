@@ -1,6 +1,6 @@
 # GIAC Indexer
 
-Written to help create indicies for GIAC certification exams. I wanted to have a tool to create a printable version of the index I made using spreadsheet software. 
+Written to help create indexes for GIAC certification exams. I wanted to have a tool to create a printable version of the index I made using spreadsheet software. 
 
 The python script requires a "index.tsv" file (Tab Separated Values) spreadsheet (e.g. exported from Microsoft Excel or Google Sheets). The Index should have three columns with field names **Keyword**, **Location**, **Comment**.  
 
