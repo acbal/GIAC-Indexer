@@ -22,8 +22,21 @@ def load_file():
 
     with open("index.tsv", "r") as index_file:
         tsv_reader = csv.DictReader(index_file, delimiter="\t")
+
+        # Determine if 3 or 2 column index
+        try:
+            for entry in tsv_reader:
+                index_tsv.append({'Keyword':entry['Keyword'], 'Location':entry['Location'], 'Comment':entry['Comment']})
+        except KeyError:
+            print("Two Column Index Detected")
+        else:
+            return index_tsv
+        
+    # Load 2 column index
+    with open("index.tsv", "r") as index_file:
+        tsv_reader = csv.DictReader(index_file, delimiter="\t")
         for entry in tsv_reader:
-            index_tsv.append({'Keyword':entry['Keyword'], 'Location':entry['Location'], 'Comment':entry['Comment']})
+            index_tsv.append({'Location':entry['Location'], 'Keyword':entry['Keyword']})
 
     return index_tsv
         
@@ -64,11 +77,19 @@ def option_handler(user_input, index_tsv):
         else:
             output_index(index_tsv)
 
+def print_entry(entry):
+    """ Returns the proper f-string depending on the number of columns """
+
+    if len(entry) == 2:
+        return f"{entry['Location']} \t- {entry['Keyword']}"
+
+    return f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}"
+
 def show_index(index_tsv):
     """ Displays the index as is """
 
     for entry in index_tsv:
-        print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
+        print(print_entry(entry))
 
 def sort_index(index_tsv, display=False):
     """ Sorts the index by keyword and optionally prints to screen """
@@ -83,23 +104,34 @@ def search_index(index_tsv):
     """ Searches the index and returns results containing the query """
 
     query = input("Search term: ").lower()
-    option_input = input("Search **K**eyword, **C**omment, or **B**oth: ").lower()
 
-    # Just test first 3 chars, should work even with some minor typos
-    if option_input == "k" or option_input[:3] == "key":
+    # Determine if 3 or 2 column index
+    if len(index_tsv[0]) == 3:
+        option_input = input("Search **K**eyword, **C**omment, or **B**oth: ").lower()
+
+        # Just test first 3 chars, should work even with some minor typos
+        if option_input == "k" or option_input[:3] == "key":
+            for entry in index_tsv:
+                if query in entry['Keyword'].lower():
+                    print(print_entry(entry))
+        elif option_input == "c" or option_input[:3] == "com":
+            for entry in index_tsv:
+                if query in entry['Comment'].lower():
+                    print(print_entry(entry))
+        elif option_input == "b" or option_input[:3] == "bot":
+            for entry in index_tsv:
+                if query in entry['Keyword'].lower() or query in entry['Comment'].lower():
+                    print(print_entry(entry))
+        else:
+            print("Invalid option")
+            
+    # Two Column Index
+    elif len(index_tsv[0]) == 2:
+
         for entry in index_tsv:
             if query in entry['Keyword'].lower():
-                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
-    elif option_input == "c" or option_input[:3] == "com":
-        for entry in index_tsv:
-            if query in entry['Comment'].lower():
-                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
-    elif option_input == "b" or option_input[:3] == "bot":
-        for entry in index_tsv:
-            if query in entry['Keyword'].lower() or query in entry['Comment'].lower():
-                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
-    else:
-        print("Invalid option")
+                print(print_entry(entry))
+        
 
 def find_duplicates(index_tsv):
     """ Find entries with a duplicate keyword (great for identifying terms in need of more context """
@@ -120,7 +152,7 @@ def find_duplicates(index_tsv):
         else: # They don't match so print 'duplicates' and clear the list
 
             for entry in duplicates:
-                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
+                print(print_entry(entry))
 
             duplicates = []
 
@@ -165,8 +197,9 @@ def escape_ang_brackets(entry):
 
     entry['Keyword'] = entry['Keyword'].replace('<', '&lt;')
     entry['Keyword'] = entry['Keyword'].replace('>', '&gt;')
-    entry['Comment'] = entry['Comment'].replace('<', '&lt;')
-    entry['Comment'] = entry['Comment'].replace('>', '&gt;')
+    if len(entry) == 3:
+        entry['Comment'] = entry['Comment'].replace('<', '&lt;')
+        entry['Comment'] = entry['Comment'].replace('>', '&gt;')
 
 def pick_colour(location):
     """ Returns the proper colour code depending on which book the location references """
@@ -176,33 +209,28 @@ def pick_colour(location):
 
     return f" colour{book}"
 
-def output_index(index_tsv, print_colours=False):
-    """ Outputs the index in HTML format """
+def prep_html_columns(columns):
+    """ Returns proper html strings depending on the number of columns """    
 
-    # Prep the file first
-    sort_index(index_tsv)
-    
-    index_html = """<html><body><table>
-                <head>
-                <style>
+    header_str = ''
 
-                :root {
-                    --border-radius: 5px;
-                    --box-shadow: 2px 2px 10px;
-                    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-                    --justify-normal: left;
-                    --line-height: 1.5;
-                }
+    #Two Colums
+    if columns == 2:
+        header_str = """<div class="location thead">Location</div><div class="keyword thead">Keyword</div>"""
 
-                body {
-                    background: var(--color-bg);
-                    color: var(--color-text);
-                    font-family: var(--font-family);
-                    line-height: var(--line-height);
-                    margin: 0;
-                    padding: 0;
-                }
-                
+    # 3 columns
+    else:
+        header_str = """<div class="keyword thead">Keyword</div><div class="location thead">\tLocation</div><div class="thead">Comment</div>"""
+
+    return header_str
+
+def add_print_css(columns):
+    """ Adds the proper stylesheet depending on the number of columns """
+
+    print_css = ""
+
+    if columns == 3:
+        print_css += """             
                 @media print {
                     @page {
                       margin: 1.5cm;   
@@ -230,6 +258,7 @@ def output_index(index_tsv, print_colours=False):
                     .keyword {
                         width: 30%;
                         margin-left: 0.1cm;
+                        margin: 0.1cm; /* Can be removed, good for readability when using colour output */
                     }
                     .location {
                         width: 10%;
@@ -240,7 +269,83 @@ def output_index(index_tsv, print_colours=False):
                         margin-left: 0.5cm;
                     }
                 }
-                
+                """
+    elif columns == 2:
+        print_css += """             
+                @media print {
+                    @page {
+                      margin: 0.5cm;   
+                    }
+                    section.table {
+                        align-items: center;
+                        width: 80%;
+                    }
+                    section.table > div:nth-of-type(odd) {
+                        background: #e0e0e0;
+                    }
+                    div.row > div {
+                      display: inline-block;  
+                      overflow-x: auto;
+                      padding: 0;
+                      margin-right: 0.25cm;
+                    }
+                    div.row {
+                      display: block;
+                      width:100%;
+                    }
+                    h1 {
+                        page-break-before: always;
+                        margin-left: 10em;
+                    }
+                    .thead {
+                        text-align: center;
+                        font-weight: bold;
+                        }
+                    .keyword {
+                        margin-left: 0.5cm;
+                    }
+                    .location {
+                        width: 15%;
+                        text-align: center;
+                    }
+                }"""
+    return print_css
+    
+
+def output_index(index_tsv, print_colours=False):
+    """ Outputs the index in HTML format """
+
+    columns = len(index_tsv[0])
+
+    # Prep the file first
+    sort_index(index_tsv)
+    # Number of columns
+    header_str = prep_html_columns(columns)
+    
+    index_html = """<html><body><table>
+                <head>
+                <style>
+
+                :root {
+                    --border-radius: 5px;
+                    --box-shadow: 2px 2px 10px;
+                    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                    --justify-normal: left;
+                    --line-height: 1.5;
+                }
+
+                body {
+                    background: var(--color-bg);
+                    color: var(--color-text);
+                    font-family: var(--font-family);
+                    line-height: var(--line-height);
+                    margin: 0;
+                    padding: 0;
+                }
+                """
+    index_html += add_print_css(columns)
+
+    index_html += """
                 section.table > div:nth-of-type(odd) {
                     background: #e0e0e0;
                 }
@@ -292,9 +397,8 @@ def output_index(index_tsv, print_colours=False):
                 </head>
                 <section class="table">
                 <div class="row">
-                <div class="keyword thead">Keyword</div><div class="location thead">Location</div><div class="thead">Comment</div>
-                </div>
                 """
+    index_html += f"{header_str}</div>"
 
     # Iterate through index, adding each row
     # Check for new letters, add Letter breaks!
@@ -308,16 +412,25 @@ def output_index(index_tsv, print_colours=False):
         if entry['Keyword'][0].upper().isalpha():
             if entry['Keyword'][0].upper() != current_char:
                 current_char = entry['Keyword'][0].upper()
-                index_html += f"<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
-                
+
+                if columns == 2:
+                    index_html += f"<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
+                else:
+                    index_html += f"<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
+
         # Print Color based on book number
         if print_colours:
             colour = pick_colour(entry['Location'])
         else:
             colour = ''
-            
-        index_html += f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
 
+        # Add HTML for each entry    
+        if columns == 2:
+            index_html += f"<div class=\"row\"><div class=\"location{colour}\">{entry['Location']}</div><div class=\"keyword\">{entry['Keyword']}</div></div>"
+        else: # 3 columns
+            index_html += f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
+
+            
     # Finalise the html page and write it
     index_html += "</section></body></html>"
     write_file(index_html)
