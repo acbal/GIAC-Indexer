@@ -31,16 +31,18 @@ def load_file():
 def user_prompt(index_tsv):
     """ Get input from user for what the program is to do """
 
-    print("Please Choose an Option: show sort search duplicates output")
+    
     options = ['show', 'sort', 'search', 'duplicates', 'output']
-
-    while True:
+    user_input = ""
+    
+    while user_input != "exit":
+        print("\n\n\t\t===GIAC INDEX HELPER SCRIPT===")
+        print("Please Choose an Option: show sort search duplicates output ('exit' to quit)")
         user_input = input("Enter Choice: ").lower()
         if user_input == "exit":
             break
         elif user_input in options:
             option_handler(user_input, index_tsv)
-            break
         else:
             print("Please enter a valid option")
 
@@ -62,7 +64,7 @@ def show_index(index_tsv):
     """ Displays the index as is """
 
     for entry in index_tsv:
-        print(f"{entry['Keyword']} --- {entry['Location']}--- {entry['Comment']}")
+        print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
 
 def sort_index(index_tsv, display=False):
     """ Sorts the index by keyword and optionally prints to screen """
@@ -83,15 +85,15 @@ def search_index(index_tsv):
     if option_input == "k" or option_input[:3] == "key":
         for entry in index_tsv:
             if query in entry['Keyword'].lower():
-                print(f"{entry['Keyword']} --- {entry['Location']}--- {entry['Comment']}")
+                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
     elif option_input == "c" or option_input[:3] == "com":
         for entry in index_tsv:
             if query in entry['Comment'].lower():
-                print(f"{entry['Keyword']} --- {entry['Location']}--- {entry['Comment']}")
+                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
     elif option_input == "b" or option_input[:3] == "bot":
         for entry in index_tsv:
             if query in entry['Keyword'].lower() or query in entry['Comment'].lower():
-                print(f"{entry['Keyword']} --- {entry['Location']}--- {entry['Comment']}")
+                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
     else:
         print("Invalid option")
 
@@ -114,7 +116,7 @@ def find_duplicates(index_tsv):
         else: # They don't match so print 'duplicates' and clear the list
 
             for entry in duplicates:
-                print(f"{entry['Keyword']} --- {entry['Location']}--- {entry['Comment']}")
+                print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
 
             duplicates = []
 
@@ -146,14 +148,13 @@ def alphabetical_breaks(index_tsv):
         i += 1
     
     show_index(index_tsv)
-            
-        
 
 def write_file(index_html):
     """ Writes the file to disk """
 
     with open("index.html", "w") as fo_write:
         fo_write.write(index_html)
+    print("Index Written as index.html")
 
 def escape_ang_brackets(entry):
     """ For HTML Export, replace < > with &lt; and &gt; """
@@ -200,7 +201,6 @@ def output_index(index_tsv):
                     }
                     div.row > div {
                       display: inline-block;  
-                      border: solid 1px #ccc;
                       margin: 0.1cm;
                       overflow-x: auto;
                       padding: 0;
@@ -242,7 +242,6 @@ def output_index(index_tsv):
                 }
                 .row > div {
                     display: table-cell;
-                    border: solid 1px #ccc;
                     padding: 2px;
                 }
                 .thead {
