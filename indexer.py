@@ -1,5 +1,5 @@
 """
-indexer_md.py
+indexer.py
 Author: Allan Balanda allan.balanda@ryerson.ca
 
 This program is designed to help output a printable index for a GIAC exam.
@@ -217,8 +217,9 @@ def create_report(index, tsv):
 
     # Per Book Entries
     output += "<h3>Entries per Book Number</h3>"
-    for book, value in book_entries.items():
-        output += f"<b>Book {book}</b> --- {value}<br>"
+    ## Must print sorted book entries
+    for book in sorted(book_entries.keys()):
+        output += f"<b>Book {book}</b> --- {book_entries[book]}<br>"
 
     # Per Letter Entries
     output += "<h3>Entries per Letter</h3>"
