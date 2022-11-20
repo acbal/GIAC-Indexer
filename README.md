@@ -1,22 +1,51 @@
 # GIAC Indexer
 
-Written to help create indexes for GIAC certification exams. I wanted to have a tool to create a printable version of the index I made using spreadsheet software.  
+Written to help create printable indexes for GIAC certification exams. This script takes an unsorted TSV or markdown file file and outputs a sorted HTML page that can be viewed in a browser (or printed/printed to PDF).
 
-This script takes an unsorted TSV (tab separated values) file and outputs a sorted, HTML page that can be viewed in a browser and printed.
+This script can run on two types of input files: **Tab Separated Values** or **markdown inspired**. TSV files can be exported from spreadsheet software such as Microsoft Excel or Google Sheets.
 
+## TSV Files (Tab Separated Values)
 
-## Usage
-The python script requires a "index.tsv" file (e.g. exported from Microsoft Excel or Google Sheets) in the same folder as the script.  
-The script works with **two column** (Location and Keyword) or **three column** indexes (Keyword, Location, Comment). The first row of the spreadsheet should have these titles.
+TSV files can be **2** or **3** columns. The first row must contain column titles **Keyword** and **Location** (format *n.nnn* e.g. *1.101*) for two column indexes. Three column indexes can also have the field **Comment**.
 
-The script has a few options when run.
-* Display the index as is  
-* Display a sorted index  
-* Search for a term in the Keyword or Comment Fields (or Both!)  
-* Display duplicate Keywords (great for finding entries in need of more context)  
-* Output an HTML file of the sorted index (which can then be converted to PDF or printed directly!) 
-    * The script can add a background colour to the location based on the book (as of right now colours can be altered by modifying the <style> in the HTML file) 
-    * Per book location colours assume the location is in the format n.nnn (book#.page#)
+## Markdown Files
+
+Markdown files use a subset of markdown but with the addition of color! (e.g. for separating red team vs blue team). Acceptable formatting includes: `*italic*`, `**bold**`, and `;;color Text goes here;;` where `color` is the name of the color you desire. Asterisks (\*) must be escaped as so `\*`. Newlines can be included as `\n`.
+
+The markdown can also be either two columns or three colums. Each line denotes a new entry:
+
+### Two Column Markdown
+
+> Linux 1.103  
+> Windows 1.105  
+
+or 
+
+> 1.103 Linux  
+> 1.105 Windows Operating system  
+
+### Three column Markdown
+
+> Linux 1.103 A free operating system  
+> Windows 1.105 Dominant desktop OS  
+
+# Usage
+
+```$ python3 indexer.py <flags> <filename>```
+
+## Flags
+
+`-c` add a background colour to the location based on the book (as of right now colours can be altered by modifying the <style> in the HTML file)  
+`-t` Allow the input of a TSV File  
+`-d` Output a file with duplicate keywords (great for identifying entries in need of more context)  
+`-r` Output a report file showing how many entries per book and per letter of the alphabet  
+`-s` Search: Search you index and print results to the terminal (This flag is standalone and cannot be used with other options)  
+
+Flags can be combined, for example:
+
+```python3 indexer.py -tcdr index.tsv``` The above will take a TSV file and output a report, a list of duplicates, and the output index will have color coded locations.
+
+```python3 indexer.py -r -d index.md``` The above will take a markdown file and output a report, a list of duplicates, and the output index will not be color coded.
     
 
 

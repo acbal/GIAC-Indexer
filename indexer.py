@@ -1,26 +1,34 @@
 """
-indexer.py
+indexer_md.py
 Author: Allan Balanda allan.balanda@ryerson.ca
 
-This program takes a GIAC index in tsv format (e.g. exported from google sheets or excel)
-and can be used to generated a sorted file ready to print (with page breaks between letters)
+This program is designed to help output a printable index for a GIAC exam.
+The input is a plain text file with markdown inspired formatting. 
+
+The index input should be in the format:
+(Keyword) (Location) (optional comment)
+Linux 1.234 An operating system
+Windows 2.101 *italic* **bold** ;;blue Blue text;;
+
+Note: asterisks in the file must be escaped! \*
+
+Currently Lines starting with "#" are skipped (use for comments etc!)
+Can use \n for a linebreak
 """
 
+import sys
+import re
+import string
 import csv
 
-def start_program():
-    """ Loads the tsv file and calls prompt function """
-    
-    index_tsv = load_file()
-    user_prompt(index_tsv)
+### TSV Specific Functions
 
-
-def load_file():
+def load_file_tsv(file_name):
     """ Open TSV file and create a list where each entry in a dict """
 
     index_tsv = []
 
-    with open("index.tsv", "r") as index_file:
+    with open(file_name, "r") as index_file:
         tsv_reader = csv.DictReader(index_file, delimiter="\t")
 
         # Determine if 3 or 2 column index
@@ -28,201 +36,270 @@ def load_file():
             for entry in tsv_reader:
                 index_tsv.append({'Keyword':entry['Keyword'], 'Location':entry['Location'], 'Comment':entry['Comment']})
         except KeyError:
-            print("Two Column Index Detected")
+            print("Loaded TSV File: Two Column Index Detected")
         else:
+            print("Loaded TSV File: Three Column Index Detected")
+            index_tsv.insert(0, {'columns':3})
             return index_tsv
         
     # Load 2 column index
-    with open("index.tsv", "r") as index_file:
+    with open(file_name, "r") as index_file:
         tsv_reader = csv.DictReader(index_file, delimiter="\t")
         for entry in tsv_reader:
             index_tsv.append({'Location':entry['Location'], 'Keyword':entry['Keyword']})
 
+    index_tsv.insert(0, {'columns':2})
     return index_tsv
-        
-        
-def user_prompt(index_tsv):
-    """ Get input from user for what the program is to do """
 
+### Markdown Specific Functions
+
+def parse_line(line):
+    """ Searches the line for the keyword, location, comment returns a dict """
+    # TODO throw an error message for each line parse failure!!! (print the line in question)
+
+    # Get location first
+    location_re = re.search('\d+\.\d+', line)
+    location = line[location_re.start():location_re.end()]
+
+    # Get remaining text
+    line_text = re.split('\d+\.\d+', line)
+
+    # Strip whitespace and eliminate empty strings
+    line_text_clean = []
+    for item in line_text:
+        if item != '':
+            line_text_clean.append(item.strip())
+
+    # if len 'line_text_clean' is 1 then it's a two column index
+    if len(line_text_clean) == 1:
+        return {'Keyword':line_text_clean[0], 'Location':location}
+    else: # 3 columns
+        return {'Keyword':line_text_clean[0], 'Location':location, 'Comment':line_text_clean[1]}
+
+
+def parse_file(file_name):
+    """ Parses the file, determine # of columns, returns list containing the index data """
+    # TODO Try catch filenotfound error
     
-    options = ['show', 'sort', 'search', 'duplicates', 'output']
-    user_input = ""
+    # Index will be a list of dicts (keys of keyword,location,comment)
+    # First entry stores the number of columns
+    index = [{'columns':2}]
     
-    while user_input != "exit":
-        print("\n\n\t\t===GIAC INDEX HELPER SCRIPT===")
-        print("Please Choose an Option: show sort search duplicates output ('exit' to quit)")
-        user_input = input("Enter Choice: ").lower()
-        if user_input == "exit":
+    # Identify where is the keyword, location, comment (skip lines with #)
+    with open(file_name, "r") as fo:
+        for line in fo:
+            if len(line) > 1 and not line.startswith('#'):
+                index.append(parse_line(line.rstrip()))
+
+                # Check if any entries use 3 columns
+                if len(index[-1]) == 3:
+                    index[0]['columns'] = 3
+
+    print(f"Input was a markdown file with {index[0]['columns']} columns.")   
+    return index
+
+def strip_formatting(keyword):
+    """ Strips markdown formatting and colour formatting from entries to make sort key """
+
+    # First we have to strip colour formatting e.g. ;;blue before stripping punctuation e.g. ;;
+            
+    while ';;' in keyword:
+        # Catch edge case: single ;; remains
+        if keyword.count(';;') == 1:
+            keyword = keyword.replace(';;', '', 1)
             break
-        elif user_input in options:
-            option_handler(user_input, index_tsv)
-        else:
-            print("Please enter a valid option")
+        # Clear terminal ';;' (prevent indexing error)
+        if keyword.endswith(';;'):
+            keyword = keyword[:-2]
+        # find something like ";;xxx"
+        start = keyword.index(';;')
+        stop = keyword.index(' ', start) + 1 # First 'space' after the ';;____' (+1 removes that space)
+        # Add that color to the stripped colors list
+        keyword = keyword[:start] + keyword[stop:]
 
-def option_handler(user_input, index_tsv):
-    """ Helper function to call appropriate function based on user input """
+    # Remove remaining markdown punctuation
+    keyword = keyword.translate(str.maketrans('', '', "*"))
 
-    if user_input == "show":
-        show_index(index_tsv)
-    elif user_input == "sort":
-        sort_index(index_tsv, display=True)
-    elif user_input == "search":
-        search_index(index_tsv)
-    elif user_input == "duplicates":
-        find_duplicates(index_tsv)
-    elif user_input == "output":
-        input2 = input("Use Colours to separate books? *Y*es to confirm ").lower()
-        if input2 == "yes" or input2 == "y":
-            output_index(index_tsv, print_colours=True)
-        else:
-            output_index(index_tsv)
+    return keyword
 
-def print_entry(entry):
-    """ Returns the proper f-string depending on the number of columns """
 
-    if len(entry) == 2:
-        return f"{entry['Location']} \t- {entry['Keyword']}"
+### Generic Code
 
-    return f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}"
+def find_duplicates(index):
+    """ Find entries with a duplicate keyword (great to find terms in need of more context) """
 
-def show_index(index_tsv):
-    """ Displays the index as is """
+    duplicates = [index[0]] # Keep the metadata entry
+    # Iterate through index, compare entries i and i+1
+    for i in range(1, len(index) - 1): #Skip entry 1 (meta data, stop at len-1 for out of bounds)
+        j = i + 1
+        if index[i]['Keyword'].lower() == index[j]['Keyword'].lower():
+            duplicates.append(index[i])
+            if index[j]['Keyword'].lower() not in duplicates:
+                duplicates.append(index[j])
 
-    for entry in index_tsv:
-        print(print_entry(entry))
+    return duplicates
 
-def sort_index(index_tsv, display=False):
-    """ Sorts the index by keyword and optionally prints to screen """
-
-    # Sort by key, use lambda to return the 'keyword' element of each dict entry
-    index_tsv.sort(key=lambda dict_entry: dict_entry['Keyword'].lower())
-
-    if display:
-        show_index(index_tsv)
-        
-def search_index(index_tsv):
+def search_index(index):
     """ Searches the index and returns results containing the query """
 
+    columns = index[0]['columns']
     query = input("Search term: ").lower()
 
     # Determine if 3 or 2 column index
-    if len(index_tsv[0]) == 3:
+    if columns == 3:
         option_input = input("Search **K**eyword, **C**omment, or **B**oth: ").lower()
 
         # Just test first 3 chars, should work even with some minor typos
         if option_input == "k" or option_input[:3] == "key":
-            for entry in index_tsv:
+            for entry in index[1:]:
                 if query in entry['Keyword'].lower():
-                    print(print_entry(entry))
+                    print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
         elif option_input == "c" or option_input[:3] == "com":
-            for entry in index_tsv:
+            for entry in index[1:]:
                 if query in entry['Comment'].lower():
-                    print(print_entry(entry))
+                    print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
         elif option_input == "b" or option_input[:3] == "bot":
-            for entry in index_tsv:
+            for entry in index[1:]:
                 if query in entry['Keyword'].lower() or query in entry['Comment'].lower():
-                    print(print_entry(entry))
+                    print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
         else:
             print("Invalid option")
             
     # Two Column Index
-    elif len(index_tsv[0]) == 2:
-
-        for entry in index_tsv:
+    elif columns == 2:
+        for entry in index[1:]:
             if query in entry['Keyword'].lower():
-                print(print_entry(entry))
-        
+                print(f"{entry['Location']} \t- {entry['Keyword']}")
 
-def find_duplicates(index_tsv):
-    """ Find entries with a duplicate keyword (great for identifying terms in need of more context """
+### Functions related to Creating a report
 
-    # First sort the index
-    sort_index(index_tsv)
+def report_count(index):
+    """ Iterates through index and determines entries per book/per letter """
 
-    duplicates = [] 
-    # Iterate through index, if entries i, i+1 equal, append them if not already in duplicates
-    # Must stop iteration at len-1 to prevent out of bounds
-    for i in range(len(index_tsv) - 1):
-        j = i + 1
-        if index_tsv[i]['Keyword'].lower() == index_tsv[j]['Keyword'].lower():
-            if index_tsv[i]['Keyword'] not in duplicates:
-                duplicates.append(index_tsv[i])
-            if index_tsv[j]['Keyword'] not in duplicates:
-                duplicates.append(index_tsv[j])
-        else: # They don't match so print 'duplicates' and clear the list
+    book_entries = {}
+    alphabet_entries = {}
 
-            for entry in duplicates:
-                print(print_entry(entry))
+    for entry in index:
 
-            duplicates = []
+        # Book count
+        current_book = entry['Location'][:entry['Location'].index('.')] # Get str before the decimal
+        if current_book not in book_entries:
+            book_entries[current_book] = 1
+        else:
+            book_entries[current_book] += 1
 
-def alphabetical_breaks(index_tsv):
-    """ Inserts alphabetical breaks in a sorted index """
+        # Letter count
+        current_letter = get_first_letter(entry['Keyword']).upper()
+        # handle non alphabet chars
+        if not current_letter.isalpha():
+            current_letter = "#"   
+        if current_letter not in alphabet_entries:
+            alphabet_entries[current_letter] = 1
+        else:
+            alphabet_entries[current_letter] += 1
 
-    sort_index(index_tsv)
+    return book_entries, alphabet_entries
 
-    # If the first char of the next entry is not the same, insert a string "Letter: <<next char>>"
-    # 'i' is current index; 'j' is next index in the list
-    stop_index = len(index_tsv) - 1
-    i = 0
-    while i < stop_index:
-        j = i + 1
+def create_report(index, tsv):
+    """ Ouputs a report with information about the number of entries """
 
-        # Check that the keyword starts with a letter (ignore numbers, '.' etc.)
-        if not index_tsv[i]['Keyword'][0].isalpha():
-            print(index_tsv[i]['Keyword'])
-            i += 1
-            continue
-
-        # if next letter different, insert a row, then increment i to skip over the new empty row!
-        if index_tsv[i]['Keyword'][0].lower() != index_tsv[j]['Keyword'][0].lower():
-                index_tsv.insert(j, f"Letter {index_tsv[j]['Keyword'].upper()}")
-                i += 1
-                stop_index += 1 # List is now longer, add another iteration to for loop
-
-        # Increment counter
-        i += 1
+    # Get data
+    book_entries, alphabet_entries = report_count(index[1:])
     
-    show_index(index_tsv)
-
-def write_file(index_html):
-    """ Writes the file to disk """
-
-    with open("index.html", "w") as fo_write:
-        fo_write.write(index_html)
-    print("Index Written as index.html")
-
-def escape_ang_brackets(entry):
-    """ For HTML Export, replace < > with &lt; and &gt; """
-
-    entry['Keyword'] = entry['Keyword'].replace('<', '&lt;')
-    entry['Keyword'] = entry['Keyword'].replace('>', '&gt;')
-    if len(entry) == 3:
-        entry['Comment'] = entry['Comment'].replace('<', '&lt;')
-        entry['Comment'] = entry['Comment'].replace('>', '&gt;')
-
-def pick_colour(location):
-    """ Returns the proper colour code depending on which book the location references """
-
-    # Assume location in the form n.nnn
-    book = location.split('.')[0]
-
-    return f" colour{book}"
-
-def prep_html_columns(columns):
-    """ Returns proper html strings depending on the number of columns """    
-
-    header_str = ''
-
-    #Two Colums
-    if columns == 2:
-        header_str = """<div class="location thead">Location</div><div class="keyword thead">Keyword</div>"""
-
-    # 3 columns
+    output = "<html><body><h1>Index Summary</h1>"
+    # Type of Input
+    if tsv:
+        output += f"<b>The input was a TSV file with {index[0]['columns']} columns.</b>"
     else:
-        header_str = """<div class="keyword thead">Keyword</div><div class="location thead">\tLocation</div><div class="thead">Comment</div>"""
+        output += f"<b>The input was a MD file with {index[0]['columns']} columns.</b>"
+    # Total Length
+    output += f"<p>Total Length: {len(index)-1} entries</p>"
 
-    return header_str
+    # Per Book Entries
+    output += "<h3>Entries per Book Number</h3>"
+    for book, value in book_entries.items():
+        output += f"<b>Book {book}</b> --- {value}<br>"
+
+    # Per Letter Entries
+    output += "<h3>Entries per Letter</h3>"
+    for letter, value in alphabet_entries.items():
+        output += f"<b>{letter}</b> --- {value}<br>"
+
+    output += "</body></html>"
+
+
+    # Write the file
+    write_file(output, "report.html")
+
+### Functions for HTML Output
+
+def format_to_html(text):
+    """ Replaces markdown formatting and special chars with html equivalents """
+
+    # First escape angle brackets
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    # Add in line breaks
+    text = text.replace('\\n', '<br>')
+
+    #Color characters
+    while ';;' in text:
+        tag_index = text.index(";;") + 2
+        tag_stop_index = text.index(" ", tag_index)
+        color = text[tag_index:tag_stop_index]
+        
+        text = text.replace(";;"+color, f"<span style=\"color:{color}\">", 1)
+        text = text.replace(";;", "</span>", 1)
+
+    # Bold
+    while '**' in text:
+        text = text.replace("**", "<span class=\"bold\">", 1)
+        text = text.replace("**", "</span>", 1)
+        
+    # Italic while saving '*' characters
+    if not text.count('*') == 1: # Single asterisk? Might be in tsv file or not escaped
+        if '\*' in text:
+            text = text.replace('\*', "!AST!")
+        while '*' in text:
+            text = text.replace("*", "<span class=\"italic\">", 1)
+            text = text.replace("*", "</span>", 1)
+        if '!AST!' in text:
+            text = text.replace('!AST!', '*')
+            
+    return text
+
+def create_html_head():
+    """ Creates start of html file """
+
+    html = """<html><body><table>
+                <head>
+                <style>
+
+                :root {
+                    --border-radius: 5px;
+                    --box-shadow: 2px 2px 10px;
+                    --font-family: Calibri, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                    --justify-normal: left;
+                    --line-height: 1.5;
+                }
+
+                body {
+                    background: var(--color-bg);
+                    color: var(--color-text);
+                    font-family: var(--font-family);
+                    line-height: var(--line-height);
+                    margin: 0;
+                    padding: 0;
+                }
+
+                .bold {
+                    font-weight: bold;
+                }
+                .italic {
+                    font-style: italic;
+                }
+                """
+    return html
 
 def add_print_css(columns):
     """ Adds the proper stylesheet depending on the number of columns """
@@ -237,6 +314,7 @@ def add_print_css(columns):
                     }
                     section.table > div:nth-of-type(odd) {
                         background: #e0e0e0;
+                        width:20cm;
                     }
                     div.row > div {
                       display: inline-block;  
@@ -258,7 +336,7 @@ def add_print_css(columns):
                     .keyword {
                         width: 30%;
                         margin-left: 0.1cm;
-                        margin: 0.1cm; /* Can be removed, good for readability when using colour output */
+                        /*margin: 0.1cm; /* Can be removed, good for readability when using colour output */
                     }
                     .location {
                         width: 10%;
@@ -278,7 +356,7 @@ def add_print_css(columns):
                     }
                     section.table {
                         align-items: center;
-                        width: 80%;
+                        width: 20cm;
                     }
                     section.table > div:nth-of-type(odd) {
                         background: #e0e0e0;
@@ -310,42 +388,11 @@ def add_print_css(columns):
                     }
                 }"""
     return print_css
-    
 
-def output_index(index_tsv, print_colours=False):
-    """ Outputs the index in HTML format """
+def add_print_css2():
+    """ Holds the rest of the non specific css """
 
-    columns = len(index_tsv[0])
-
-    # Prep the file first
-    sort_index(index_tsv)
-    # Number of columns
-    header_str = prep_html_columns(columns)
-    
-    index_html = """<html><body><table>
-                <head>
-                <style>
-
-                :root {
-                    --border-radius: 5px;
-                    --box-shadow: 2px 2px 10px;
-                    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-                    --justify-normal: left;
-                    --line-height: 1.5;
-                }
-
-                body {
-                    background: var(--color-bg);
-                    color: var(--color-text);
-                    font-family: var(--font-family);
-                    line-height: var(--line-height);
-                    margin: 0;
-                    padding: 0;
-                }
-                """
-    index_html += add_print_css(columns)
-
-    index_html += """
+    return """
                 section.table > div:nth-of-type(odd) {
                     background: #e0e0e0;
                 }
@@ -395,47 +442,158 @@ def output_index(index_tsv, print_colours=False):
 
                 </style>
                 </head>
-                <section class="table">
-                <div class="row">
-                """
-    index_html += f"{header_str}</div>"
+                <section class="table">"""
 
-    # Iterate through index, adding each row
-    # Check for new letters, add Letter breaks!
+def pick_colour(location):
+    """ Returns the proper colour code depending on which book the location references """
+
+    # Assume location in the form n.nnn
+    book = location.split('.')[0]
+
+    return f" colour{book}"
+
+def create_html_line(entry, columns, book_colours):
+    """ Converts each individual index entry to html """
+
+    if book_colours:
+        colour = pick_colour(entry['Location'])
+    else:
+        colour = ''
+
+    entry['Keyword'] = format_to_html(entry['Keyword'])
+    if columns == 2:
+        return f"<div class=\"row\"><div class=\"location{colour}\">{entry['Location']}</div><div class=\"keyword\">{entry['Keyword']}</div></div>"
+    if columns == 3:
+        entry['Comment'] = format_to_html(entry['Comment'])
+        return f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
+
+def get_first_letter(keyword):
+    """ Get the first character that is actually part of the keyword (i.e. not punctuation!) """
+
+    char_i = 0
+    while char_i < len(keyword):
+        if keyword[char_i] == ';':
+            char_i = keyword.index(' ', char_i) + 1 # First space after this char
+            continue
+        elif keyword[char_i] == "*":
+            char_i += 1
+            continue
+        else:
+            return keyword[char_i]
+        
+
+def create_html(index, book_colours, columns):
+    """ Creates the HTML file """
+
+    html_file = create_html_head()
+    html_file += add_print_css(columns)
+    html_file += add_print_css2()
+
+    # Add each index entry, checking for new start letters
     current_char = ''
-    for entry in index_tsv:
-
-        # Change angle brackets for HTML codes
-        escape_ang_brackets(entry)
-
-        # Check if new Letter
-        if entry['Keyword'][0].upper().isalpha():
-            if entry['Keyword'][0].upper() != current_char:
-                current_char = entry['Keyword'][0].upper()
+    for entry in index[1:]:
+        test_letter = get_first_letter(entry['Keyword']).upper()
+        
+        if test_letter.isalpha(): # Only worry about alphabetical entries
+            if test_letter != current_char:
+                current_char = test_letter
 
                 if columns == 2:
-                    index_html += f"<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
+                    html_file += f"<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
                 else:
-                    index_html += f"<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
+                    html_file += f"<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
+    
+        html_file += create_html_line(entry, columns, book_colours)
 
-        # Print Color based on book number
-        if print_colours:
-            colour = pick_colour(entry['Location'])
-        else:
-            colour = ''
+    return html_file
 
-        # Add HTML for each entry    
-        if columns == 2:
-            index_html += f"<div class=\"row\"><div class=\"location{colour}\">{entry['Location']}</div><div class=\"keyword\">{entry['Keyword']}</div></div>"
-        else: # 3 columns
-            index_html += f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
+def print_html(index, book_colours=False, file_name="index.html"):
+    """ Outputs a HTML File """
 
-            
-    # Finalise the html page and write it
-    index_html += "</section></body></html>"
-    write_file(index_html)
+    columns = index[0]['columns']
+    html_file = ""
+    html_file += create_html(index, book_colours, columns)
+    html_file += "</section></body></html>"
+
+    #Write the file
+    write_file(html_file, file_name)
+    
+
+def write_file(index_html, file_name):
+    """ Writes the file to disk """
+
+    with open(file_name, "w") as fo_write:
+        fo_write.write(index_html)
+    print(f"Index Written as {file_name}")
+
+def start_program(arg_list):
+    """ Calls appropriate functions based on cli args """
+
+    book_colours = False
+    tsv = False
+    duplicates = False
+    report = False
+    search = False
+    
+    # Check args if any exist
+    flags = ''.join(arg_list[:-1])
+    if flags:
+        if '-' in flags and 'c' in flags:
+            book_colours = True
+        if '-' in flags and 't' in flags:
+            tsv = True
+        if '-' in flags and 'd' in flags:
+            duplicates = True
+        if '-' in flags and 'r' in flags:
+            report = True
+        if '-' in flags and 's' in flags:
+            search = True
+
+    ### Load the file into memory        
+    # Markdown File
+    if not tsv:
+        # Load index from file and sort it
+        index = parse_file(arg_list[-1])
+        # First remove the initial entry (contains column info) then readd it post sort
+        meta_data = index.pop(0)
+        # Sort key is 'Keyword' (need to remove formatting and color formatting)
+        index.sort(key=lambda dict_entry: strip_formatting(dict_entry['Keyword'].lower()))
+        index.insert(0, meta_data)
+
+    # TSV File
+    elif tsv:
+        index = load_file_tsv(arg_list[-1])
+        meta_data = index.pop(0)
+        index.sort(key=lambda dict_entry: dict_entry['Keyword'].lower())
+        index.insert(0, meta_data)
+    ### File in memory as 'index' and is sorted
+
+    # Run search if requested
+    if search:
+        search_index(index)
+        return True
+    # Output Desired results
+    if report:
+        create_report(index, tsv)
+    if duplicates:
+        duplicates = find_duplicates(index)
+        print_html(duplicates, book_colours, "duplicates.html")
+    # Ouput Index to HTML
+    else: 
+        print_html(index, book_colours)
     
 
 if __name__ == "__main__":
 
-    start_program()
+    # Usage python3 indexer_md.py <flags> <filename>
+    
+    if len(sys.argv) > 1:
+        start_program(sys.argv[1:])
+    else:
+        print("Index Helper script\nUsage: $ python3 indexer.py <flags> <filename>\nFlags:")
+        print("\t-c\t colour output for book locations")
+        print("\t-t\t Tab separated values file import")
+        print("\t-d\t Show duplicate keyword entries")
+        print("\t-r\t Generate a report about your index (entries per book/per letter)")
+        print("\t-s\t Search your index, do not output any file")
+
