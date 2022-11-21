@@ -33,13 +33,15 @@ or
 
 ```$ python3 indexer.py <flags> <filename>```
 
+By Default the script takes a markdown file and outputs an HTML based index. However, optional flags can be used to modify functionality:
+
 ## Flags
 
 `-c` add a background colour to the location based on the book (as of right now colours can be altered by modifying the <style> in the HTML file)  
 `-t` Allow the input of a TSV File  
 `-d` Output a file with duplicate keywords (great for identifying entries in need of more context)  
 `-r` Output a report file showing how many entries per book and per letter of the alphabet  
-`-s` Search: Search you index and print results to the terminal (This flag is standalone and cannot be used with other options)  
+`-s` Search: Search you index and print results to the terminal (This flag can only be combined with -t for TSV input)
 
 Flags can be combined, for example:
 
