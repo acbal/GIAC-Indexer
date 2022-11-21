@@ -335,6 +335,9 @@ def add_print_css(columns):
                         background: #e0e0e0;
                         width:20cm;
                     }
+                    .table {
+                        page-break-after: always;
+                    }
                     div.row > div {
                       display: inline-block;  
                       overflow-x: auto;
@@ -379,6 +382,9 @@ def add_print_css(columns):
                     }
                     section.table > div:nth-of-type(odd) {
                         background: #e0e0e0;
+                    }
+                    .table {
+                        page-break-after: always;
                     }
                     div.row > div {
                       display: inline-block;  
@@ -501,7 +507,7 @@ def get_first_letter(keyword):
             return keyword[char_i]
         
 
-def create_html(index, book_colours, columns):
+def create_html(index, book_colours, columns, page_breaks):
     """ Creates the HTML file """
 
     html_file = create_html_head()
@@ -510,28 +516,52 @@ def create_html(index, book_colours, columns):
 
     # Add each index entry, checking for new start letters
     current_char = ''
+    non_alpha_char = False
     for entry in index[1:]:
         test_letter = get_first_letter(entry['Keyword']).upper()
-        
-        if test_letter.isalpha(): # Only worry about alphabetical entries
+
+        # Alphabetical entries
+        if test_letter.isalpha(): 
             if test_letter != current_char:
                 current_char = test_letter
 
-                if columns == 2:
-                    html_file += f"<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
+                # Page Breaks
+                if page_breaks:
+                    if columns == 2:
+                        html_file += f"""</section><section class="table"><div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                    else:
+                        html_file += f"""</section><section class="table"><div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
                 else:
-                    html_file += f"<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"
-    
+                    if columns == 2:
+                        html_file += f"""</section><section class="table"><div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                    else:
+                        html_file += f"""</section><section class="table"><div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+        # Non alphabetical Entries
+        elif not non_alpha_char: # We haven't seen a non alphabetical character
+            non_alpha_char = True
+            # Page Breaks
+            if page_breaks:
+                if columns == 2:
+                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+                else:
+                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+            else:
+                if columns == 2:
+                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+                else:
+                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+        
+                    
         html_file += create_html_line(entry, columns, book_colours)
 
     return html_file
 
-def print_html(index, book_colours=False, file_name="index.html"):
+def print_html(index, book_colours, file_name, page_breaks):
     """ Outputs a HTML File """
 
     columns = index[0]['columns']
     html_file = ""
-    html_file += create_html(index, book_colours, columns)
+    html_file += create_html(index, book_colours, columns, page_breaks)
     html_file += "</section></body></html>"
 
     #Write the file
@@ -553,6 +583,7 @@ def start_program(arg_list):
     duplicates = False
     report = False
     search = False
+    page_breaks = False
     
     # Check args if any exist
     flags = ''.join(arg_list[:-1])
@@ -567,6 +598,8 @@ def start_program(arg_list):
             report = True
         if '-' in flags and 's' in flags:
             search = True
+        if '-' in flags and 'p' in flags:
+            page_breaks = True
 
     ### Load the file into memory        
     # Markdown File
@@ -605,10 +638,10 @@ def start_program(arg_list):
         create_report(index, tsv)
     if duplicates:
         duplicates = find_duplicates(index)
-        print_html(duplicates, book_colours, "duplicates.html")
+        print_html(duplicates, book_colours, "duplicates.html", False)
 
     # Ouput Index to HTML
-    print_html(index, book_colours)
+    print_html(index, book_colours, "index.html",page_breaks)
     
 
 if __name__ == "__main__":
@@ -623,5 +656,6 @@ if __name__ == "__main__":
         print("\t-t\t Tab separated values file import")
         print("\t-d\t Show duplicate keyword entries")
         print("\t-r\t Generate a report about your index (entries per book/per letter)")
+        print("\t-p\t Have page breaks at each letter")
         print("\t-s\t Search your index, do not output any file")
 

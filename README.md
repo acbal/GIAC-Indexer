@@ -41,13 +41,14 @@ By Default the script takes a markdown file and outputs an HTML based index. How
 `-t` Allow the input of a TSV File  
 `-d` Output a file with duplicate keywords (great for identifying entries in need of more context)  
 `-r` Output a report file showing how many entries per book and per letter of the alphabet  
+`-p` When printing the index, force page breaks after each letter.
 `-s` Search: Search you index and print results to the terminal (This flag can only be combined with -t for TSV input)
 
 Flags can be combined, for example:
 
 ```python3 indexer.py -tcdr index.tsv``` The above will take a TSV file and output a report, a list of duplicates, and the output index will have color coded locations.
 
-```python3 indexer.py -r -d index.md``` The above will take a markdown file and output a report, a list of duplicates, and the output index will not be color coded.
+```python3 indexer.py -p -r -d index.md``` The above will take a markdown file and output a report, a list of duplicates, and the output index will not be color coded but will have page breaks after each letter.
     
 
 
