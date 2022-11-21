@@ -36,7 +36,7 @@ def load_file_tsv(file_name):
             for entry in tsv_reader:
                 index_tsv.append({'Keyword':entry['Keyword'], 'Location':entry['Location'], 'Comment':entry['Comment']})
         except KeyError:
-            print("Loaded TSV File: Two Column Index Detected")
+            print("Comment Column Not Detected")
         else:
             print("Loaded TSV File: Three Column Index Detected")
             index_tsv.insert(0, {'columns':3})
@@ -45,11 +45,18 @@ def load_file_tsv(file_name):
     # Load 2 column index
     with open(file_name, "r") as index_file:
         tsv_reader = csv.DictReader(index_file, delimiter="\t")
-        for entry in tsv_reader:
-            index_tsv.append({'Location':entry['Location'], 'Keyword':entry['Keyword']})
 
-    index_tsv.insert(0, {'columns':2})
-    return index_tsv
+        # Catch error if no headings
+        try:
+            for entry in tsv_reader:
+                index_tsv.append({'Location':entry['Location'], 'Keyword':entry['Keyword']})
+        except KeyError:
+            print("Error: No Headings detected, does the TSV file have Keyword/Location/Comment titles in the first row?")
+            return index_tsv
+        else:
+            index_tsv.insert(0, {'columns':2})
+            print("Loaded TSV File: Two Column Index Detected")
+            return index_tsv
 
 ### Markdown Specific Functions
 
@@ -570,6 +577,9 @@ def start_program(arg_list):
     # TSV File
     if tsv:
         index = load_file_tsv(arg_list[-1])
+        # If len(index)==0 then error in loading TSV file
+        if len(index) == 0:
+            return True
         meta_data = index.pop(0)
         index.sort(key=lambda dict_entry: dict_entry['Keyword'].lower())
         index.insert(0, meta_data)
