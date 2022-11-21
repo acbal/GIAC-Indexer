@@ -525,7 +525,7 @@ def write_file(index_html, file_name):
 
     with open(file_name, "w") as fo_write:
         fo_write.write(index_html)
-    print(f"Index Written as {file_name}")
+    print(f"{file_name[:file_name.index('.')].title()} written as {file_name}")
 
 def start_program(arg_list):
     """ Calls appropriate functions based on cli args """
@@ -553,16 +553,22 @@ def start_program(arg_list):
     ### Load the file into memory        
     # Markdown File
     if not tsv:
-        # Load index from file and sort it
-        index = parse_file(arg_list[-1])
-        # First remove the initial entry (contains column info) then readd it post sort
-        meta_data = index.pop(0)
-        # Sort key is 'Keyword' (need to remove formatting and color formatting)
-        index.sort(key=lambda dict_entry: strip_formatting(dict_entry['Keyword'].lower()))
-        index.insert(0, meta_data)
+        # Failsafe to check if user forgot TSV flag
+        try:
+            # Load index from file and sort it
+            index = parse_file(arg_list[-1])
+        except AttributeError:
+            tsv = True
+            print("Warning: -t TSV flag not used but input appears to be TSV file")
+        else:
+            # First remove the initial entry (contains column info) then readd it post sort
+            meta_data = index.pop(0)
+            # Sort key is 'Keyword' (need to remove formatting and color formatting)
+            index.sort(key=lambda dict_entry: strip_formatting(dict_entry['Keyword'].lower()))
+            index.insert(0, meta_data)
 
     # TSV File
-    elif tsv:
+    if tsv:
         index = load_file_tsv(arg_list[-1])
         meta_data = index.pop(0)
         index.sort(key=lambda dict_entry: dict_entry['Keyword'].lower())
@@ -579,9 +585,9 @@ def start_program(arg_list):
     if duplicates:
         duplicates = find_duplicates(index)
         print_html(duplicates, book_colours, "duplicates.html")
+
     # Ouput Index to HTML
-    else: 
-        print_html(index, book_colours)
+    print_html(index, book_colours)
     
 
 if __name__ == "__main__":
