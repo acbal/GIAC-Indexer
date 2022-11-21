@@ -67,7 +67,7 @@ def parse_line(line):
     # Get location first
     location_re = re.search('\d+\.\d+', line)
     location = line[location_re.start():location_re.end()]
-
+    
     # Get remaining text
     line_text = re.split('\d+\.\d+', line)
 
@@ -87,6 +87,9 @@ def parse_line(line):
 def parse_file(file_name):
     """ Parses the file, determine # of columns, returns list containing the index data """
     # TODO Try catch filenotfound error
+
+    # Catch if file might be TSV?
+    tsv_file = False
     
     # Index will be a list of dicts (keys of keyword,location,comment)
     # First entry stores the number of columns
@@ -95,14 +98,22 @@ def parse_file(file_name):
     # Identify where is the keyword, location, comment (skip lines with #)
     with open(file_name, "r") as fo:
         for line in fo:
+
+            # TSV Check
+            if "\t" in line:
+                tsv_file = True
+            
             if len(line) > 1 and not line.startswith('#'):
                 index.append(parse_line(line.rstrip()))
 
                 # Check if any entries use 3 columns
                 if len(index[-1]) == 3:
                     index[0]['columns'] = 3
-
-    print(f"Input was a markdown file with {index[0]['columns']} columns.")   
+                    
+    if tsv_file:
+        print("Warning: This might be a TSV file without Headings, did you use the right flag?\nOutput not guaranteed")
+    else:
+        print(f"Input was a markdown file with {index[0]['columns']} columns.")   
     return index
 
 def strip_formatting(keyword):
