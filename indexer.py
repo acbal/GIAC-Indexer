@@ -258,8 +258,10 @@ def format_to_html(text):
     # First escape angle brackets
     text = text.replace('<', '&lt;')
     text = text.replace('>', '&gt;')
-    # Add in line breaks
+    # Add in line breaks -- catching escaped ones
+    text = text.replace('\\\\n', '!NEWLINE!')
     text = text.replace('\\n', '<br>')
+    text = text.replace('!NEWLINE!', '\\n')
 
     #Color characters
     while ';;' in text:
@@ -520,8 +522,40 @@ def create_html(index, book_colours, columns, page_breaks):
     for entry in index[1:]:
         test_letter = get_first_letter(entry['Keyword']).upper()
 
-        # Alphabetical entries
-        if test_letter.isalpha(): 
+        # We haven't seen a non alphabetical character
+        if not non_alpha_char and not test_letter.isalpha(): 
+            non_alpha_char = True
+            # Page Breaks
+            if page_breaks:
+                if columns == 2:
+                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+                else:
+                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+            else:
+                if columns == 2:
+                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+                else:
+                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+
+        if test_letter.isalpha() and not non_alpha_char: # Didn't have non alpha char
+            non_alpha_char = True # Don't go through this path second time
+            if test_letter != current_char:
+                current_char = test_letter
+
+                # Page Breaks
+                if page_breaks:
+                    if columns == 2:
+                        html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                    else:
+                        html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                else:
+                    if columns == 2:
+                        html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                    else:
+                        html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+
+        # The rest of the Alphabetical entries 
+        elif test_letter.isalpha(): 
             if test_letter != current_char:
                 current_char = test_letter
 
@@ -536,21 +570,6 @@ def create_html(index, book_colours, columns, page_breaks):
                         html_file += f"""</section><section class="table"><div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
                     else:
                         html_file += f"""</section><section class="table"><div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
-        # Non alphabetical Entries
-        elif not non_alpha_char: # We haven't seen a non alphabetical character
-            non_alpha_char = True
-            # Page Breaks
-            if page_breaks:
-                if columns == 2:
-                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
-                else:
-                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
-            else:
-                if columns == 2:
-                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
-                else:
-                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
-        
                     
         html_file += create_html_line(entry, columns, book_colours)
 
