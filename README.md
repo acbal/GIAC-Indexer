@@ -10,7 +10,7 @@ TSV files can be **2** or **3** columns. The first row must contain column title
 
 ## Markdown Files
 
-Markdown files use a subset of markdown but with the addition of color! (e.g. for separating red team vs blue team). Acceptable formatting includes: `*italic*`, `**bold**`, and `;;color Text goes here;;` where `color` is the name of the color you desire. Asterisks (\*) must be escaped as so `\*`. Newlines can be included as `\n`.
+Markdown files use a subset of markdown but with the addition of color! (e.g. for separating red team vs blue team). Acceptable formatting includes: `*italic*`, `**bold**`, and `;;color Text goes here;;` where `color` is the name of the color you desire. Asterisks (\*) must be escaped as so `\*`. Newlines can be included as `\n`. Newlines can be escaped as `\\n`.
 
 The markdown can also be either two columns or three colums. Each line denotes a new entry:
 
@@ -41,8 +41,8 @@ By Default the script takes a markdown file and outputs an HTML based index. How
 `-t` Allow the input of a TSV File  
 `-d` Output a file with duplicate keywords (great for identifying entries in need of more context)  
 `-r` Output a report file showing how many entries per book and per letter of the alphabet  
-`-p` When printing the index, force page breaks after each letter.
-`-s` Search: Search you index and print results to the terminal (This flag can only be combined with -t for TSV input)
+`-p` When printing the index, force page breaks after each letter.  
+`-s` Search: Search you index and print results to the terminal (This flag can only be combined with -t for TSV input)  
 
 Flags can be combined, for example:
 

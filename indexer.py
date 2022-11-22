@@ -542,17 +542,11 @@ def create_html(index, book_colours, columns, page_breaks):
             if test_letter != current_char:
                 current_char = test_letter
 
-                # Page Breaks
-                if page_breaks:
-                    if columns == 2:
-                        html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
-                    else:
-                        html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                if columns == 2:
+                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
                 else:
-                    if columns == 2:
-                        html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
-                    else:
-                        html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+
 
         # The rest of the Alphabetical entries 
         elif test_letter.isalpha(): 
@@ -567,9 +561,9 @@ def create_html(index, book_colours, columns, page_breaks):
                         html_file += f"""</section><section class="table"><div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
                 else:
                     if columns == 2:
-                        html_file += f"""</section><section class="table"><div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                        html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
                     else:
-                        html_file += f"""</section><section class="table"><div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
+                        html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>{current_char}</h1></div><div></div></div>"""
                     
         html_file += create_html_line(entry, columns, book_colours)
 
@@ -660,7 +654,7 @@ def start_program(arg_list):
         print_html(duplicates, book_colours, "duplicates.html", False)
 
     # Ouput Index to HTML
-    print_html(index, book_colours, "index.html",page_breaks)
+    print_html(index, book_colours, "index.html", page_breaks)
     
 
 if __name__ == "__main__":
