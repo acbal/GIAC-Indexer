@@ -335,16 +335,16 @@ def add_print_css(columns):
                     }
                     section.table > div:nth-of-type(odd) {
                         background: #e0e0e0;
-                        width:20cm;
                     }
                     .table {
                         page-break-after: always;
+                        width:20cm;
                     }
                     div.row > div {
                       display: inline-block;  
                       overflow-x: auto;
                       padding: 0;
-                      vertical-align: middle;
+                      vertical-align: top;
                     }
                     div.row {
                       display: block;
@@ -393,6 +393,7 @@ def add_print_css(columns):
                       overflow-x: auto;
                       padding: 0;
                       margin-right: 0.25cm;
+                      vertical-align: top;
                     }
                     div.row {
                       display: block;
