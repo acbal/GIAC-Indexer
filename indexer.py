@@ -13,7 +13,7 @@ Windows 2.101 *italic* **bold** ;;blue Blue text;;
 Note: asterisks in the file must be escaped! \*
 
 Currently Lines starting with "#" are skipped (use for comments etc!)
-Can use \n for a linebreak
+Can use \n for a linebreak, Must escape with \\n
 """
 
 import sys
@@ -21,26 +21,45 @@ import re
 import string
 import csv
 
+
+### Define the Index class
+
+class Index():
+    
+    def __init__(self):
+        """ Instantiates the Index""" 
+        
+        self.columns = 0
+        self.entries = []
+        self.count = 0
+    
+    def add_entry(self, keyword, location, comment=''):
+        """ Add an entry to the index """
+        
+        self.entries.append({"Keyword":keyword, "Location":location, "Comment":comment})
+        self.count += 1
+
+
 ### TSV Specific Functions
 
 def load_file_tsv(file_name):
-    """ Open TSV file and create a list where each entry in a dict """
+    """ Open TSV file and create the index object """
 
-    index_tsv = []
+    index = Index()
 
     with open(file_name, "r") as index_file:
         tsv_reader = csv.DictReader(index_file, delimiter="\t")
-
+        
         # Determine if 3 or 2 column index
         try:
             for entry in tsv_reader:
-                index_tsv.append({'Keyword':entry['Keyword'], 'Location':entry['Location'], 'Comment':entry['Comment']})
+                index.add_entry(entry['Keyword'], entry['Location'], entry['Comment'])
         except KeyError:
             print("Comment Column Not Detected")
         else:
             print("Loaded TSV File: Three Column Index Detected")
-            index_tsv.insert(0, {'columns':3})
-            return index_tsv
+            index.columns = 3
+            return index
         
     # Load 2 column index
     with open(file_name, "r") as index_file:
@@ -49,19 +68,19 @@ def load_file_tsv(file_name):
         # Catch error if no headings
         try:
             for entry in tsv_reader:
-                index_tsv.append({'Location':entry['Location'], 'Keyword':entry['Keyword']})
+                index.add_entry(entry['Keyword'], entry['Location'])
         except KeyError:
             print("Error: No Headings detected, does the TSV file have Keyword/Location/Comment titles in the first row?")
-            return index_tsv
+            return index
         else:
-            index_tsv.insert(0, {'columns':2})
+            index.columns = 2
             print("Loaded TSV File: Two Column Index Detected")
-            return index_tsv
+            return index
 
 ### Markdown Specific Functions
 
-def parse_line(line):
-    """ Searches the line for the keyword, location, comment returns a dict """
+def parse_line(index, line):
+    """ Searches the line for the keyword, location, comment and populates index entry"""
     # TODO throw an error message for each line parse failure!!! (print the line in question)
 
     # Get location first
@@ -79,21 +98,22 @@ def parse_line(line):
 
     # if len 'line_text_clean' is 1 then it's a two column index
     if len(line_text_clean) == 1:
-        return {'Keyword':line_text_clean[0], 'Location':location}
+        index.add_entry(line_text_clean[0], location)
     else: # 3 columns
-        return {'Keyword':line_text_clean[0], 'Location':location, 'Comment':line_text_clean[1]}
+        index.add_entry(line_text_clean[0], location, line_text_clean[1])
 
 
 def parse_file(file_name):
-    """ Parses the file, determine # of columns, returns list containing the index data """
+    """ Parses the file, determine # of columns, returns populated index """
     # TODO Try catch filenotfound error
 
     # Catch if file might be TSV?
     tsv_file = False
     
     # Index will be a list of dicts (keys of keyword,location,comment)
-    # First entry stores the number of columns
-    index = [{'columns':2}]
+    index = Index()
+    # Default 2 column
+    index.columns = 2
     
     # Identify where is the keyword, location, comment (skip lines with #)
     with open(file_name, "r") as fo:
@@ -104,16 +124,16 @@ def parse_file(file_name):
                 tsv_file = True
             
             if len(line) > 1 and not line.startswith('#'):
-                index.append(parse_line(line.rstrip()))
+                parse_line(index, line.rstrip())
 
                 # Check if any entries use 3 columns
-                if len(index[-1]) == 3:
-                    index[0]['columns'] = 3
+                if index.entries[-1]['Comment'] != '':
+                    index.columns = 3
                     
     if tsv_file:
         print("Warning: This might be a TSV file without Headings, did you use the right flag?\nOutput not guaranteed")
     else:
-        print(f"Input was a markdown file with {index[0]['columns']} columns.")   
+        print(f"Input was a markdown file with {index.columns} columns.")   
     return index
 
 def strip_formatting(keyword):
@@ -146,21 +166,23 @@ def strip_formatting(keyword):
 def find_duplicates(index):
     """ Find entries with a duplicate keyword (great to find terms in need of more context) """
 
-    duplicates = [index[0]] # Keep the metadata entry
+    duplicates = Index()
+    duplicates.columns = index.columns
+    
     # Iterate through index, compare entries i and i+1
-    for i in range(1, len(index) - 1): #Skip entry 1 (meta data, stop at len-1 for out of bounds)
+    for i in range(0, index.count - 1): #Skip entry 1 (meta data, stop at len-1 for out of bounds)
         j = i + 1
-        if index[i]['Keyword'].lower() == index[j]['Keyword'].lower():
-            duplicates.append(index[i])
-            if index[j]['Keyword'].lower() not in duplicates:
-                duplicates.append(index[j])
+        if index.entries[i]['Keyword'].lower() == index.entries[j]['Keyword'].lower():
+            duplicates.entries.append(index.entries[i])
+            if index.entries[j]['Keyword'].lower() not in duplicates.entries:
+                duplicates.entries.append(index.entries[j])
 
     return duplicates
 
 def search_index(index):
     """ Searches the index and returns results containing the query """
 
-    columns = index[0]['columns']
+    columns = index.columns
     query = input("Search term: ").lower()
 
     # Determine if 3 or 2 column index
@@ -169,15 +191,15 @@ def search_index(index):
 
         # Just test first 3 chars, should work even with some minor typos
         if option_input == "k" or option_input[:3] == "key":
-            for entry in index[1:]:
+            for entry in index.entries:
                 if query in entry['Keyword'].lower():
                     print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
         elif option_input == "c" or option_input[:3] == "com":
-            for entry in index[1:]:
+            for entry in index.entries:
                 if query in entry['Comment'].lower():
                     print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
         elif option_input == "b" or option_input[:3] == "bot":
-            for entry in index[1:]:
+            for entry in index.entries:
                 if query in entry['Keyword'].lower() or query in entry['Comment'].lower():
                     print(f"{entry['Keyword']} - [{entry['Location']}] - {entry['Comment']}")
         else:
@@ -185,7 +207,7 @@ def search_index(index):
             
     # Two Column Index
     elif columns == 2:
-        for entry in index[1:]:
+        for entry in index.entries:
             if query in entry['Keyword'].lower():
                 print(f"{entry['Location']} \t- {entry['Keyword']}")
 
@@ -197,7 +219,7 @@ def report_count(index):
     book_entries = {}
     alphabet_entries = {}
 
-    for entry in index:
+    for entry in index.entries:
 
         # Book count
         current_book = entry['Location'][:entry['Location'].index('.')] # Get str before the decimal
@@ -222,16 +244,16 @@ def create_report(index, tsv):
     """ Ouputs a report with information about the number of entries """
 
     # Get data
-    book_entries, alphabet_entries = report_count(index[1:])
+    book_entries, alphabet_entries = report_count(index)
     
     output = "<html><body><h1>Index Summary</h1>"
     # Type of Input
     if tsv:
-        output += f"<b>The input was a TSV file with {index[0]['columns']} columns.</b>"
+        output += f"<b>The input was a TSV file with {index.columns} columns.</b>"
     else:
-        output += f"<b>The input was a MD file with {index[0]['columns']} columns.</b>"
+        output += f"<b>The input was a MD file with {index.columns} columns.</b>"
     # Total Length
-    output += f"<p>Total Length: {len(index)-1} entries</p>"
+    output += f"<p>Total Length: {index.count} entries</p>"
 
     # Per Book Entries
     output += "<h3>Entries per Book Number</h3>"
@@ -458,13 +480,15 @@ def add_print_css2():
                 background: #b7c5e1;
                 }
                 .colour4 {
+                background: #e0e1b7;
 
                 }
                 .colour5 {
+                background: #e1bcb7;
 
                 }
                 .colour6 {
-
+                background: #b7dde1
                 }
                 
 
@@ -490,10 +514,10 @@ def create_html_line(entry, columns, book_colours):
 
     entry['Keyword'] = format_to_html(entry['Keyword'])
     if columns == 2:
-        return f"<div class=\"row\"><div class=\"location{colour}\">{entry['Location']}</div><div class=\"keyword\">{entry['Keyword']}</div></div>"
+        return f"<div class=\"row\"><div class=\"location{colour}\">{entry['Location']}</div><div class=\"keyword\">{entry['Keyword']}</div></div>\n\n"
     if columns == 3:
         entry['Comment'] = format_to_html(entry['Comment'])
-        return f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>"
+        return f"<div class=\"row\"><div class=\"keyword\">{entry['Keyword']}</div><div class=\"location{colour}\">{entry['Location']}</div><div class=\"comment\">{entry['Comment']}</div></div>\n\n"
 
 def get_first_letter(keyword):
     """ Get the first character that is actually part of the keyword (i.e. not punctuation!) """
@@ -520,7 +544,7 @@ def create_html(index, book_colours, columns, page_breaks):
     # Add each index entry, checking for new start letters
     current_char = ''
     non_alpha_char = False
-    for entry in index[1:]:
+    for entry in index.entries:
         test_letter = get_first_letter(entry['Keyword']).upper()
 
         # We haven't seen a non alphabetical character
@@ -573,7 +597,7 @@ def create_html(index, book_colours, columns, page_breaks):
 def print_html(index, book_colours, file_name, page_breaks):
     """ Outputs a HTML File """
 
-    columns = index[0]['columns']
+    columns = index.columns
     html_file = ""
     html_file += create_html(index, book_colours, columns, page_breaks)
     html_file += "</section></body></html>"
@@ -626,21 +650,17 @@ def start_program(arg_list):
             tsv = True
             print("Warning: -t TSV flag not used but input appears to be TSV file")
         else:
-            # First remove the initial entry (contains column info) then readd it post sort
-            meta_data = index.pop(0)
             # Sort key is 'Keyword' (need to remove formatting and color formatting)
-            index.sort(key=lambda dict_entry: strip_formatting(dict_entry['Keyword'].lower()))
-            index.insert(0, meta_data)
+            index.entries.sort(key=lambda dict_entry: strip_formatting(dict_entry['Keyword'].lower()))
 
     # TSV File
     if tsv:
         index = load_file_tsv(arg_list[-1])
         # If len(index)==0 then error in loading TSV file
-        if len(index) == 0:
+        if len(index.entries) == 0:
             return True
-        meta_data = index.pop(0)
-        index.sort(key=lambda dict_entry: dict_entry['Keyword'].lower())
-        index.insert(0, meta_data)
+        index.entries.sort(key=lambda dict_entry: dict_entry['Keyword'].lower())
+
     ### File in memory as 'index' and is sorted
 
     # Run search if requested
