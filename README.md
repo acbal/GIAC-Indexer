@@ -31,7 +31,7 @@ or
 
 # Usage
 
-```$ python3 indexer.py <flags> <filename>```
+```$ python3 indexer.py <flags> <-h "Optional title"> <filename>```
 
 By Default the script takes a markdown file and outputs an HTML based index. However, optional flags can be used to modify functionality:
 
@@ -43,6 +43,7 @@ By Default the script takes a markdown file and outputs an HTML based index. How
 `-r` Output a report file showing how many entries per book and per letter of the alphabet  
 `-p` When printing the index, force page breaks after each letter.  
 `-s` Search: Search you index and print results to the terminal (This flag can only be combined with -t for TSV input)  
+`-h` Add an optional title to the output file, this argument must come last.  
 
 Flags can be combined, for example:
 

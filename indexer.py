@@ -534,12 +534,16 @@ def get_first_letter(keyword):
             return keyword[char_i]
         
 
-def create_html(index, book_colours, columns, page_breaks):
+def create_html(index, book_colours, columns, page_breaks, header):
     """ Creates the HTML file """
 
     html_file = create_html_head()
     html_file += add_print_css(columns)
     html_file += add_print_css2()
+    
+    # Add title if desired
+    if header:
+        html_file += f"<h1>{header}</h1>"
 
     # Add each index entry, checking for new start letters
     current_char = ''
@@ -594,12 +598,12 @@ def create_html(index, book_colours, columns, page_breaks):
 
     return html_file
 
-def print_html(index, book_colours, file_name, page_breaks):
+def print_html(index, book_colours, file_name, page_breaks, header=''):
     """ Outputs a HTML File """
 
     columns = index.columns
     html_file = ""
-    html_file += create_html(index, book_colours, columns, page_breaks)
+    html_file += create_html(index, book_colours, columns, page_breaks, header)
     html_file += "</section></body></html>"
 
     #Write the file
@@ -622,21 +626,26 @@ def start_program(arg_list):
     report = False
     search = False
     page_breaks = False
+    header = ''
     
-    # Check args if any exist
-    flags = ''.join(arg_list[:-1])
-    if flags:
-        if '-' in flags and 'c' in flags:
+    # Check for header flag and get the title
+    if '-h' in arg_list[:-1]:
+        header = ' '.join(arg_list[arg_list.index('-h')+1:-1])
+        
+    # Check args, -h flag must come last
+    flags = ''.join(arg_list[:arg_list.index('-h')])
+    if '-' in flags:
+        if 'c' in flags:
             book_colours = True
-        if '-' in flags and 't' in flags:
+        if 't' in flags:
             tsv = True
-        if '-' in flags and 'd' in flags:
+        if 'd' in flags:
             duplicates = True
-        if '-' in flags and 'r' in flags:
+        if 'r' in flags:
             report = True
-        if '-' in flags and 's' in flags:
+        if 's' in flags:
             search = True
-        if '-' in flags and 'p' in flags:
+        if 'p' in flags:
             page_breaks = True
 
     ### Load the file into memory        
@@ -675,20 +684,21 @@ def start_program(arg_list):
         print_html(duplicates, book_colours, "duplicates.html", False)
 
     # Ouput Index to HTML
-    print_html(index, book_colours, "index.html", page_breaks)
+    print_html(index, book_colours, "index.html", page_breaks, header)
     
 
 if __name__ == "__main__":
 
-    # Usage python3 indexer_md.py <flags> <filename>
+    # Usage python3 indexer_md.py <flags> <-h "title"> <filename>
     
     if len(sys.argv) > 1:
         start_program(sys.argv[1:])
     else:
-        print("Index Helper script\nUsage: $ python3 indexer.py <flags> <filename>\nFlags:")
+        print("Index Helper script\nUsage: $ python3 indexer.py <flags> <-h \"page title\"> <filename>\nFlags:")
         print("\t-c\t colour output for book locations")
         print("\t-t\t Tab separated values file import")
         print("\t-d\t Show duplicate keyword entries")
+        print("\t-h\t \"text\" Add a title at the start of the page")
         print("\t-r\t Generate a report about your index (entries per book/per letter)")
         print("\t-p\t Have page breaks at each letter")
         print("\t-s\t Search your index, do not output any file")
