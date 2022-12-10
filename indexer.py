@@ -372,7 +372,6 @@ def add_print_css(columns):
                       display: block;
                     }
                     h1 {
-                        page-break-before: always;
                         margin-left: 10em;
                     }
                     .thead {
@@ -422,7 +421,7 @@ def add_print_css(columns):
                       width:100%;
                     }
                     h1 {
-                        page-break-before: always;
+                        page-break-before: auto;
                         margin-left: 10em;
                     }
                     .thead {
@@ -494,7 +493,7 @@ def add_print_css2():
 
                 </style>
                 </head>
-                <section class="table">"""
+                """
 
 def pick_colour(location):
     """ Returns the proper colour code depending on which book the location references """
@@ -544,6 +543,9 @@ def create_html(index, book_colours, columns, page_breaks, header):
     # Add title if desired
     if header:
         html_file += f"<h1>{header}</h1>"
+    
+    # Create first table:
+    html_file += """<section class="table">"""
 
     # Add each index entry, checking for new start letters
     current_char = ''
@@ -554,17 +556,10 @@ def create_html(index, book_colours, columns, page_breaks, header):
         # We haven't seen a non alphabetical character
         if not non_alpha_char and not test_letter.isalpha(): 
             non_alpha_char = True
-            # Page Breaks
-            if page_breaks:
-                if columns == 2:
-                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
-                else:
-                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+            if columns == 2:
+                html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
             else:
-                if columns == 2:
-                    html_file += f"""<div class=\"row\"><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
-                else:
-                    html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
+                html_file += f"""<div class=\"row\"><div></div><div class=\"alphabet\"><h1>#./!</h1></div><div></div></div>"""
 
         if test_letter.isalpha() and not non_alpha_char: # Didn't have non alpha char
             non_alpha_char = True # Don't go through this path second time
@@ -633,7 +628,10 @@ def start_program(arg_list):
         header = ' '.join(arg_list[arg_list.index('-h')+1:-1])
         
     # Check args, -h flag must come last
-    flags = ''.join(arg_list[:arg_list.index('-h')])
+    if '-h' in arg_list:
+        flags = ''.join(arg_list[:arg_list.index('-h')])
+    else:
+        flags = ''.join(arg_list[:-1])
     if '-' in flags:
         if 'c' in flags:
             book_colours = True
